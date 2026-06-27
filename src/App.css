@@ -1,0 +1,13 @@
+/*
+ * App-specific component styles.
+ *
+ * Prefer Tailwind utility classes in components. Only place custom CSS here
+ * when a utility-based solution is not practical. The default Vite template
+ * styles have been removed during scaffolding.
+ */
+
+#root {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
