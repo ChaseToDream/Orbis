@@ -2,23 +2,24 @@
  * SettingsModal 组件
  *
  * 提供用户设置的模态编辑界面：
- * - 编辑当前 OpenAI 兼容 API 服务的配置（API Key / Base URL / Model / 请求超时）
+ * - 支持切换提供商（OpenAI 兼容 / Agnes Image 2.1 Flash）
+ * - 编辑当前提供商的配置（API Key / Base URL / Model / 请求超时）
  * - 受控表单，失焦或点击"保存"时写入 settings（同步到 localStorage）
- * - 内置「测试连接」功能：调用 /v1/models 验证认证与连通性，
- *   覆盖认证失败、网络异常、超时、Base URL 错误等场景
+ * - 内置「测试连接」功能：调用 /v1/models 验证认证与连通性
  * - 支持点击遮罩或按 ESC 关闭
  * - 支持"清除所有配置"（带二次确认）
- *
- * 说明：当前 API 服务已切换为 OpenAI 兼容模式，使用 OpenAI 标准 API 接口格式。
  */
 
 import { useEffect, useState, type MouseEvent } from 'react'
-import { testConnection } from '../adapters'
+import { getProvider, openaiTestConnection, agnesTestConnection } from '../adapters'
 import type { ApiProviderConfig, ProviderId } from '../types'
 import { useSettings } from '../hooks/useSettings'
 
-/** 当前 API 服务的提供商标识（OpenAI 兼容模式，固定为 'openai'） */
-const ACTIVE_PROVIDER: ProviderId = 'openai'
+/** 各提供商的连接测试函数映射 */
+const testConnectionMap: Record<ProviderId, typeof openaiTestConnection> = {
+  openai: openaiTestConnection,
+  agnes: agnesTestConnection,
+}
 
 /** 默认请求超时（秒），对应适配器内部 30000ms */
 const DEFAULT_TIMEOUT_SECONDS = 30
@@ -79,7 +80,7 @@ export function SettingsModal({
   onClose,
   onCleared,
 }: SettingsModalProps) {
-  const { settings, updateProviderConfig, clearAllSettings } = useSettings()
+  const { settings, currentProvider, setCurrentProvider, updateProviderConfig, clearAllSettings } = useSettings()
 
   // 表单受控状态
   const [apiKey, setApiKey] = useState('')
@@ -93,17 +94,20 @@ export function SettingsModal({
   // 连接测试状态
   const [testStatus, setTestStatus] = useState<TestStatus>({ kind: 'idle' })
 
+  // 当前提供商的显示名称
+  const providerDisplayName = getProvider(currentProvider).displayName
+
   // 打开或外部 providers 变化时，同步表单初始值
   useEffect(() => {
     if (!open) return
-    const cfg = settings.providers[ACTIVE_PROVIDER] ?? { apiKey: '' }
+    const cfg = settings.providers[currentProvider] ?? { apiKey: '' }
     setApiKey(cfg.apiKey ?? '')
     setBaseUrl(cfg.baseUrl ?? '')
     setModel(cfg.model ?? '')
     setTimeoutSeconds(msToSeconds(cfg.timeout))
     // 重置测试状态，避免上次结果残留
     setTestStatus({ kind: 'idle' })
-  }, [open, settings.providers])
+  }, [open, settings.providers, currentProvider])
 
   // ESC 键关闭
   useEffect(() => {
@@ -145,7 +149,7 @@ export function SettingsModal({
    * 将当前表单值写入 settings（同步到 localStorage）。
    */
   const persistCurrentForm = () => {
-    updateProviderConfig(ACTIVE_PROVIDER, buildConfigPatch())
+    updateProviderConfig(currentProvider, buildConfigPatch())
   }
 
   /** 保存按钮 */
@@ -163,7 +167,7 @@ export function SettingsModal({
     // 先保存，保证测试与后续生成使用同一份配置
     persistCurrentForm()
     setTestStatus({ kind: 'testing' })
-    const result = await testConnection(buildConfigPatch())
+    const result = await testConnectionMap[currentProvider](buildConfigPatch())
     setTestStatus(
       result.ok
         ? { kind: 'success', message: result.message }
@@ -242,9 +246,17 @@ export function SettingsModal({
         <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
           <div>
             <h2 className="text-lg font-semibold text-gray-900">设置</h2>
-            <p className="mt-0.5 text-xs text-gray-500">
-              API 服务：OpenAI 兼容模式
-            </p>
+            <div className="mt-1 flex items-center gap-2">
+              <span className="text-xs text-gray-500">API 服务：</span>
+              <select
+                value={currentProvider}
+                onChange={(e) => setCurrentProvider(e.target.value as ProviderId)}
+                className="rounded border border-gray-300 bg-white px-2 py-0.5 text-xs font-medium text-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              >
+                <option value="openai">OpenAI 兼容</option>
+                <option value="agnes">Agnes Image 2.1 Flash</option>
+              </select>
+            </div>
           </div>
           <button
             type="button"
@@ -320,12 +332,18 @@ export function SettingsModal({
                 value={baseUrl}
                 onChange={(e) => setBaseUrl(e.target.value)}
                 onBlur={persistCurrentForm}
-                placeholder="https://api.openai.com"
+                placeholder={
+                  currentProvider === 'agnes'
+                    ? 'https://apihub.agnes-ai.com'
+                    : 'https://api.openai.com'
+                }
                 className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                 autoComplete="off"
               />
               <p className="mt-1 text-xs text-gray-400">
-                OpenAI 兼容接口的基础地址，可填自建反代地址。
+                {currentProvider === 'agnes'
+                  ? 'Agnes Image API 基础地址，默认已填写。'
+                  : 'OpenAI 兼容接口的基础地址，可填自建反代地址。'}
               </p>
             </div>
 
@@ -346,12 +364,18 @@ export function SettingsModal({
                 value={model}
                 onChange={(e) => setModel(e.target.value)}
                 onBlur={persistCurrentForm}
-                placeholder="dall-e-3"
+                placeholder={
+                  currentProvider === 'agnes'
+                    ? 'agnes-image-2.1-flash'
+                    : 'dall-e-3'
+                }
                 className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                 autoComplete="off"
               />
               <p className="mt-1 text-xs text-gray-400">
-                文生图默认 dall-e-3；图生图建议 dall-e-2。
+                {currentProvider === 'agnes'
+                  ? '默认使用 agnes-image-2.1-flash 模型。'
+                  : '文生图默认 dall-e-3；图生图建议 dall-e-2。'}
               </p>
             </div>
 

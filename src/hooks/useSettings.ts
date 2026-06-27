@@ -22,11 +22,63 @@ import { get, remove, set, STORAGE_KEYS } from '../storage'
  */
 function createDefaultSettings(): Settings {
   return {
-    // 当前 API 服务已切换为 OpenAI 兼容模式，仅保留单一提供商
     currentProvider: 'openai',
     providers: {
       openai: { apiKey: '' },
+      agnes: { apiKey: '' },
     },
+  }
+}
+
+/**
+ * 校验并修补从 localStorage 加载的设置，确保与当前代码兼容。
+ *
+ * 即使旧版设置中缺少某些 provider，也会补齐默认配置。
+ *
+ * @param raw - 从 localStorage 反序列化得到的原始数据
+ * @returns 修补后的合法 Settings 对象
+ */
+function normalizeSettings(raw: unknown): Settings {
+  const defaults = createDefaultSettings()
+  if (!raw || typeof raw !== 'object') return defaults
+
+  const obj = raw as Record<string, unknown>
+  const currentProvider =
+    typeof obj.currentProvider === 'string' &&
+    (obj.currentProvider === 'openai' || obj.currentProvider === 'agnes')
+      ? (obj.currentProvider as ProviderId)
+      : defaults.currentProvider
+
+  const rawProviders = obj.providers
+  const providers: Record<string, ApiProviderConfig> = {}
+
+  // 确保所有已知 provider 都有配置
+  for (const id of Object.keys(defaults.providers) as ProviderId[]) {
+    const rawCfg =
+      rawProviders && typeof rawProviders === 'object'
+        ? (rawProviders as Record<string, unknown>)[id]
+        : undefined
+    if (rawCfg && typeof rawCfg === 'object') {
+      const cfg = rawCfg as Record<string, unknown>
+      providers[id] = {
+        apiKey: typeof cfg.apiKey === 'string' ? cfg.apiKey : '',
+        baseUrl: typeof cfg.baseUrl === 'string' ? cfg.baseUrl : undefined,
+        model: typeof cfg.model === 'string' ? cfg.model : undefined,
+        timeout:
+          typeof cfg.timeout === 'number' ? cfg.timeout : undefined,
+        extra:
+          cfg.extra && typeof cfg.extra === 'object'
+            ? (cfg.extra as Record<string, unknown>)
+            : undefined,
+      }
+    } else {
+      providers[id] = { apiKey: '' }
+    }
+  }
+
+  return {
+    currentProvider,
+    providers: providers as Record<ProviderId, ApiProviderConfig>,
   }
 }
 
@@ -34,12 +86,14 @@ function createDefaultSettings(): Settings {
  * 从 localStorage 加载设置。
  *
  * 若读取或解析失败，返回一份新的默认设置。
+ * 加载后通过 normalizeSettings 确保数据格式兼容。
  *
  * @returns 当前持久化的设置或默认设置
  */
 function loadSettings(): Settings {
-  // 每次传入新创建的默认对象，避免 fallback 被外部修改后污染
-  return get<Settings>(STORAGE_KEYS.SETTINGS, createDefaultSettings())
+  const raw = get<unknown>(STORAGE_KEYS.SETTINGS, null)
+  if (raw === null) return createDefaultSettings()
+  return normalizeSettings(raw)
 }
 
 /**

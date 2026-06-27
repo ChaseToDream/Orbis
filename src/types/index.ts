@@ -6,9 +6,9 @@
  */
 
 // API 提供商类型
-// 当前仅保留一个 OpenAI 兼容提供商，使用 OpenAI 标准 API 接口格式
-// （/v1/images/generations、/v1/images/edits、/v1/models 等）。
-export type ProviderId = 'openai';
+// - openai：OpenAI 兼容图像生成接口（/v1/images/generations、/v1/images/edits）
+// - agnes：Agnes Image 2.1 Flash（Sapiens AI 图像生成模型，OpenAI 兼容端点）
+export type ProviderId = 'openai' | 'agnes';
 
 // 生成模式
 export type GenerateMode = 'text2img' | 'img2img';

@@ -12,7 +12,7 @@
  */
 
 import { useCallback, useEffect, useState } from 'react'
-import { getProvider } from './adapters'
+import { getProvider, providerIds } from './adapters'
 import { HistoryPanel } from './components/HistoryPanel'
 import { ImageUpload } from './components/ImageUpload'
 import { ModeSwitch } from './components/ModeSwitch'
@@ -25,7 +25,7 @@ import { useGenerate } from './hooks/useGenerate'
 import { createHistoryItemFromResult, useHistory } from './hooks/useHistory'
 import { useSettings } from './hooks/useSettings'
 import { useToast } from './hooks/useToast'
-import type { GenerateMode, GenerateRequest, HistoryItem } from './types'
+import type { GenerateMode, GenerateRequest, HistoryItem, ProviderId } from './types'
 import './App.css'
 
 /** 默认生成请求参数 */
@@ -159,7 +159,7 @@ function ChevronDownIcon() {
  */
 function App() {
   // 来自 hooks
-  const { currentProvider, hasApiKey } = useSettings()
+  const { currentProvider, setCurrentProvider, hasApiKey } = useSettings()
   const { generate, isLoading, error, lastResult, reset } = useGenerate()
   const {
     history,
@@ -414,9 +414,18 @@ function App() {
             Orbis 图片生成工具
           </h1>
           <div className="flex items-center gap-2">
-            <span className="hidden text-sm text-gray-600 sm:inline">
-              {provider.displayName}
-            </span>
+            <select
+              value={currentProvider}
+              onChange={(e) => setCurrentProvider(e.target.value as ProviderId)}
+              className="hidden rounded border border-gray-300 bg-white px-2 py-1 text-sm font-medium text-gray-700 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 sm:inline"
+              aria-label="选择提供商"
+            >
+              {providerIds.map((id) => (
+                <option key={id} value={id}>
+                  {getProvider(id).displayName}
+                </option>
+              ))}
+            </select>
             {/* 移动端参数按钮：打开抽屉 */}
             <button
               type="button"
