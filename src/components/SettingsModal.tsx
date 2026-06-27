@@ -3,15 +3,15 @@
  *
  * 提供用户设置的模态编辑界面：
  * - 支持切换提供商（OpenAI 兼容 / Agnes Image 2.1 Flash）
- * - 编辑当前提供商的配置（API Key / Base URL / Model / 请求超时）
- * - 受控表单，失焦或点击"保存"时写入 settings（同步到 localStorage）
- * - 内置「测试连接」功能：调用 /v1/models 验证认证与连通性
+ * - Agnes 模式仅需填写 API Key，其他参数使用官方默认值
+ * - OpenAI 模式可配置 API Key / Base URL / Model / 请求超时
+ * - 点击「保存」写入设置并关闭弹窗；点击「测试连接」验证连通性
  * - 支持点击遮罩或按 ESC 关闭
  * - 支持"清除所有配置"（带二次确认）
  */
 
 import { useEffect, useState, type MouseEvent } from 'react'
-import { getProvider, openaiTestConnection, agnesTestConnection } from '../adapters'
+import { openaiTestConnection, agnesTestConnection } from '../adapters'
 import type { ApiProviderConfig, ProviderId } from '../types'
 import { useSettings } from '../hooks/useSettings'
 
@@ -162,6 +162,7 @@ export function SettingsModal({
   /** 保存按钮 */
   const handleSave = () => {
     persistCurrentForm()
+    onClose()
   }
 
   /**
@@ -306,7 +307,6 @@ export function SettingsModal({
                   type={showApiKey ? 'text' : 'password'}
                   value={apiKey}
                   onChange={(e) => setApiKey(e.target.value)}
-                  onBlur={persistCurrentForm}
                   placeholder={
                     currentProvider === 'agnes'
                       ? '请输入 Agnes API Key'
@@ -349,7 +349,6 @@ export function SettingsModal({
                     type="text"
                     value={baseUrl}
                     onChange={(e) => setBaseUrl(e.target.value)}
-                    onBlur={persistCurrentForm}
                     placeholder="https://api.openai.com"
                     className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                     autoComplete="off"
@@ -375,7 +374,6 @@ export function SettingsModal({
                     type="text"
                     value={model}
                     onChange={(e) => setModel(e.target.value)}
-                    onBlur={persistCurrentForm}
                     placeholder="dall-e-3"
                     className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                     autoComplete="off"
@@ -409,7 +407,6 @@ export function SettingsModal({
                         Number.isFinite(v) ? v : DEFAULT_TIMEOUT_SECONDS,
                       )
                     }}
-                    onBlur={persistCurrentForm}
                     className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                     autoComplete="off"
                   />
