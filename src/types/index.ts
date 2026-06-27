@@ -6,7 +6,9 @@
  */
 
 // API 提供商类型
-export type ProviderId = 'dalle' | 'stability';
+// 当前仅保留一个 OpenAI 兼容提供商，使用 OpenAI 标准 API 接口格式
+// （/v1/images/generations、/v1/images/edits、/v1/models 等）。
+export type ProviderId = 'openai';
 
 // 生成模式
 export type GenerateMode = 'text2img' | 'img2img';
@@ -70,6 +72,7 @@ export interface ApiProviderConfig {
   apiKey: string;
   baseUrl?: string; // 可自定义反代
   model?: string; // 可选模型标识
+  timeout?: number; // 请求超时（毫秒），未配置时由适配器提供默认值
   extra?: Record<string, unknown>;
 }
 

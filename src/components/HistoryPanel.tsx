@@ -85,9 +85,9 @@ function modeLabel(mode: GenerateMode): string {
 
 /** 提供商徽标 className */
 function providerBadgeClass(provider: ProviderId): string {
-  return provider === 'dalle'
-    ? 'bg-blue-50 text-blue-600'
-    : 'bg-purple-50 text-purple-600'
+  // 当前仅 'openai' 一个提供商
+  void provider
+  return 'bg-blue-50 text-blue-600'
 }
 
 /** 生成模式徽标 className */

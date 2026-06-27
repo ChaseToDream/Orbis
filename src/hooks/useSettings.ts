@@ -22,10 +22,10 @@ import { get, remove, set, STORAGE_KEYS } from '../storage'
  */
 function createDefaultSettings(): Settings {
   return {
-    currentProvider: 'dalle',
+    // 当前 API 服务已切换为 OpenAI 兼容模式，仅保留单一提供商
+    currentProvider: 'openai',
     providers: {
-      dalle: { apiKey: '' },
-      stability: { apiKey: '' },
+      openai: { apiKey: '' },
     },
   }
 }
