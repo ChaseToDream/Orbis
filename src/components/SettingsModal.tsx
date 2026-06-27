@@ -94,9 +94,6 @@ export function SettingsModal({
   // 连接测试状态
   const [testStatus, setTestStatus] = useState<TestStatus>({ kind: 'idle' })
 
-  // 当前提供商的显示名称
-  const providerDisplayName = getProvider(currentProvider).displayName
-
   // 打开或外部 providers 变化时，同步表单初始值
   useEffect(() => {
     if (!open) return
@@ -138,12 +135,22 @@ export function SettingsModal({
    * timeout 由秒数换算为毫秒。该对象既可用于 updateProviderConfig（兼容 Partial），
    * 也可直接传给 testConnection 进行连接测试。
    */
-  const buildConfigPatch = (): ApiProviderConfig => ({
-    apiKey: apiKey.trim(),
-    baseUrl: baseUrl.trim() || undefined,
-    model: model.trim() || undefined,
-    timeout: secondsToMs(timeoutSeconds),
-  })
+  const buildConfigPatch = (): ApiProviderConfig => {
+    if (currentProvider === 'agnes') {
+      return {
+        apiKey: apiKey.trim(),
+        baseUrl: undefined,
+        model: undefined,
+        timeout: undefined,
+      }
+    }
+    return {
+      apiKey: apiKey.trim(),
+      baseUrl: baseUrl.trim() || undefined,
+      model: model.trim() || undefined,
+      timeout: secondsToMs(timeoutSeconds),
+    }
+  }
 
   /**
    * 将当前表单值写入 settings（同步到 localStorage）。
@@ -300,7 +307,11 @@ export function SettingsModal({
                   value={apiKey}
                   onChange={(e) => setApiKey(e.target.value)}
                   onBlur={persistCurrentForm}
-                  placeholder="请输入 API Key（如 sk-...）"
+                  placeholder={
+                    currentProvider === 'agnes'
+                      ? '请输入 Agnes API Key'
+                      : '请输入 API Key（如 sk-...）'
+                  }
                   className="w-full rounded-md border border-gray-300 px-3 py-2 pr-16 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                   autoComplete="off"
                 />
@@ -313,104 +324,101 @@ export function SettingsModal({
                   {showApiKey ? '隐藏' : '显示'}
                 </button>
               </div>
+              {currentProvider === 'agnes' && (
+                <p className="mt-1 text-xs text-gray-400">
+                  其他参数（Base URL、模型、超时）使用官方默认值，无需手动配置。
+                </p>
+              )}
             </div>
 
-            {/* Base URL */}
-            <div>
-              <label
-                htmlFor="settings-base-url"
-                className="mb-1 block text-sm font-medium text-gray-700"
-              >
-                Base URL
-                <span className="ml-1 text-xs font-normal text-gray-400">
-                  （可选）
-                </span>
-              </label>
-              <input
-                id="settings-base-url"
-                type="text"
-                value={baseUrl}
-                onChange={(e) => setBaseUrl(e.target.value)}
-                onBlur={persistCurrentForm}
-                placeholder={
-                  currentProvider === 'agnes'
-                    ? 'https://apihub.agnes-ai.com'
-                    : 'https://api.openai.com'
-                }
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                autoComplete="off"
-              />
-              <p className="mt-1 text-xs text-gray-400">
-                {currentProvider === 'agnes'
-                  ? 'Agnes Image API 基础地址，默认已填写。'
-                  : 'OpenAI 兼容接口的基础地址，可填自建反代地址。'}
-              </p>
-            </div>
+            {currentProvider === 'openai' && (
+              <>
+                {/* Base URL */}
+                <div>
+                  <label
+                    htmlFor="settings-base-url"
+                    className="mb-1 block text-sm font-medium text-gray-700"
+                  >
+                    Base URL
+                    <span className="ml-1 text-xs font-normal text-gray-400">
+                      （可选）
+                    </span>
+                  </label>
+                  <input
+                    id="settings-base-url"
+                    type="text"
+                    value={baseUrl}
+                    onChange={(e) => setBaseUrl(e.target.value)}
+                    onBlur={persistCurrentForm}
+                    placeholder="https://api.openai.com"
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    autoComplete="off"
+                  />
+                  <p className="mt-1 text-xs text-gray-400">
+                    OpenAI 兼容接口的基础地址，可填自建反代地址。
+                  </p>
+                </div>
 
-            {/* Model */}
-            <div>
-              <label
-                htmlFor="settings-model"
-                className="mb-1 block text-sm font-medium text-gray-700"
-              >
-                Model
-                <span className="ml-1 text-xs font-normal text-gray-400">
-                  （可选）
-                </span>
-              </label>
-              <input
-                id="settings-model"
-                type="text"
-                value={model}
-                onChange={(e) => setModel(e.target.value)}
-                onBlur={persistCurrentForm}
-                placeholder={
-                  currentProvider === 'agnes'
-                    ? 'agnes-image-2.1-flash'
-                    : 'dall-e-3'
-                }
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                autoComplete="off"
-              />
-              <p className="mt-1 text-xs text-gray-400">
-                {currentProvider === 'agnes'
-                  ? '默认使用 agnes-image-2.1-flash 模型。'
-                  : '文生图默认 dall-e-3；图生图建议 dall-e-2。'}
-              </p>
-            </div>
+                {/* Model */}
+                <div>
+                  <label
+                    htmlFor="settings-model"
+                    className="mb-1 block text-sm font-medium text-gray-700"
+                  >
+                    Model
+                    <span className="ml-1 text-xs font-normal text-gray-400">
+                      （可选）
+                    </span>
+                  </label>
+                  <input
+                    id="settings-model"
+                    type="text"
+                    value={model}
+                    onChange={(e) => setModel(e.target.value)}
+                    onBlur={persistCurrentForm}
+                    placeholder="dall-e-3"
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    autoComplete="off"
+                  />
+                  <p className="mt-1 text-xs text-gray-400">
+                    文生图默认 dall-e-3；图生图建议 dall-e-2。
+                  </p>
+                </div>
 
-            {/* Request Timeout */}
-            <div>
-              <label
-                htmlFor="settings-timeout"
-                className="mb-1 block text-sm font-medium text-gray-700"
-              >
-                请求超时（秒）
-                <span className="ml-1 text-xs font-normal text-gray-400">
-                  （{MIN_TIMEOUT_SECONDS}-{MAX_TIMEOUT_SECONDS}）
-                </span>
-              </label>
-              <input
-                id="settings-timeout"
-                type="number"
-                min={MIN_TIMEOUT_SECONDS}
-                max={MAX_TIMEOUT_SECONDS}
-                step={1}
-                value={timeoutSeconds}
-                onChange={(e) => {
-                  const v = Number(e.target.value)
-                  setTimeoutSeconds(
-                    Number.isFinite(v) ? v : DEFAULT_TIMEOUT_SECONDS,
-                  )
-                }}
-                onBlur={persistCurrentForm}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                autoComplete="off"
-              />
-              <p className="mt-1 text-xs text-gray-400">
-                超过该时长未响应将中止请求并提示超时。
-              </p>
-            </div>
+                {/* Request Timeout */}
+                <div>
+                  <label
+                    htmlFor="settings-timeout"
+                    className="mb-1 block text-sm font-medium text-gray-700"
+                  >
+                    请求超时（秒）
+                    <span className="ml-1 text-xs font-normal text-gray-400">
+                      （{MIN_TIMEOUT_SECONDS}-{MAX_TIMEOUT_SECONDS}）
+                    </span>
+                  </label>
+                  <input
+                    id="settings-timeout"
+                    type="number"
+                    min={MIN_TIMEOUT_SECONDS}
+                    max={MAX_TIMEOUT_SECONDS}
+                    step={1}
+                    value={timeoutSeconds}
+                    onChange={(e) => {
+                      const v = Number(e.target.value)
+                      setTimeoutSeconds(
+                        Number.isFinite(v) ? v : DEFAULT_TIMEOUT_SECONDS,
+                      )
+                    }}
+                    onBlur={persistCurrentForm}
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    autoComplete="off"
+                  />
+                  <p className="mt-1 text-xs text-gray-400">
+                    超过该时长未响应将中止请求并提示超时。
+                  </p>
+                </div>
+              </>
+            )}
 
             {/* 连接测试 */}
             <div className="rounded-md border border-gray-200 bg-gray-50 p-3">
